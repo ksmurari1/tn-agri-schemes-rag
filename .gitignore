@@ -1,0 +1,16 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.streamlit/secrets.toml
+data/vector_store/*
+!data/vector_store/.gitkeep
+data/uploads/*
+!data/uploads/.gitkeep
+*.log
+# Local backups and project structure exports
+.backup/
+folder_structure.txt
+README_PATCH.local.md
+# Local ingestion state and database
+data/source_registry.sqlite3

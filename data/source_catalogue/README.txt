@@ -1,0 +1,1 @@
+gos_links.json is the seed catalogue exported from the Government Orders table. Use the Streamlit refresh button to replace it with the latest deduplicated catalogue. gos_shortlist.csv/xlsx are review aids; the app does not automatically index all rows.

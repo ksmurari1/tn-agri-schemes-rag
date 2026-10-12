@@ -1,0 +1,17 @@
+streamlit>=1.40,<2.0
+python-dotenv>=1.0
+requests>=2.32
+beautifulsoup4>=4.12
+pandas>=2.2
+openpyxl>=3.1
+PyMuPDF>=1.24
+langchain-core>=0.3
+langchain-text-splitters>=0.3
+langchain-openai>=0.2
+langchain-community>=0.3
+faiss-cpu>=1.9
+playwright>=1.48
+pytest>=8.0
+rank-bm25>=0.2.2,<1.0
+pytesseract>=0.3.10,<1.0
+Pillow>=10.0
