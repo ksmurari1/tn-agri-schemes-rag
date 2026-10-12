@@ -4,6 +4,7 @@ This module only converts an audio recording into text. The text is placed in th
 where the farmer can review/edit it, and then goes through the normal guardrail -> retrieval -> answer flow.
 It never searches the web and never touches the knowledge base.
 """
+
 from __future__ import annotations
 
 import io
@@ -29,13 +30,16 @@ def transcribe_audio(
         raise ValueError("No audio was recorded. Please record your question again.")
     api_key = os.getenv("OPENAI_API_KEY", "")
     if not api_key:
-        raise ValueError("OPENAI_API_KEY is missing, so voice questions cannot be transcribed.")
+        raise ValueError(
+            "OPENAI_API_KEY is missing, so voice questions cannot be transcribed."
+        )
 
     from openai import OpenAI
 
     client = OpenAI(api_key=api_key)
     kwargs = {
-        "model": model or os.getenv("OPENAI_TRANSCRIBE_MODEL", DEFAULT_TRANSCRIBE_MODEL),
+        "model": model
+        or os.getenv("OPENAI_TRANSCRIBE_MODEL", DEFAULT_TRANSCRIBE_MODEL),
         "file": (filename or "question.wav", io.BytesIO(audio_bytes), "audio/wav"),
     }
     lang = (language or os.getenv("OPENAI_TRANSCRIBE_LANGUAGE", "")).strip()

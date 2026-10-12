@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -26,6 +27,7 @@ def _install_fake_openai(monkeypatch, text="  வணக்கம் hello  "):
             self.audio = type("A", (), {"transcriptions": fake})()
 
     import openai
+
     monkeypatch.setattr(openai, "OpenAI", FakeClient)
     return fake
 

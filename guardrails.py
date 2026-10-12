@@ -3,6 +3,7 @@
 Checks user questions before retrieval or answer generation. This module does not
 perform web search and does not change the indexed knowledge base.
 """
+
 from __future__ import annotations
 
 import os
@@ -35,7 +36,10 @@ def check_question(question: str) -> GuardrailResult:
     if not text:
         return GuardrailResult(False, "Please enter a question.", "empty_input")
 
-    if any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in _PROMPT_INJECTION_PATTERNS):
+    if any(
+        re.search(pattern, text, flags=re.IGNORECASE)
+        for pattern in _PROMPT_INJECTION_PATTERNS
+    ):
         return GuardrailResult(
             False,
             "இந்தக் கேள்வி பாதுகாப்பு விதிகளை மீற முயற்சிப்பதால் தடுக்கப்பட்டது. "

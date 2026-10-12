@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections import defaultdict
-from typing import Iterable
+from collections.abc import Iterable
 
 from langchain_core.documents import Document
 
@@ -23,7 +23,6 @@ def tokenize(text: str) -> list[str]:
     if current:
         tokens.append("".join(current))
     return tokens
-
 
 
 def expand_retrieval_queries(question: str) -> list[str]:
@@ -59,16 +58,31 @@ def expand_retrieval_queries(question: str) -> list[str]:
     # Subsidy questions. Use both a general scheme query and topic-specific
     # queries so Tamil wording can retrieve English source documents.
     subsidy_terms = (
-        "மானியம்", "மானிய", "மானியத்தை", "மானியத்", "உதவித்தொகை",
-        "சலுகை", "விண்ணப்பிக்க", "விண்ணப்பம்", "விண்ணப்ப",
+        "மானியம்",
+        "மானிய",
+        "மானியத்தை",
+        "மானியத்",
+        "உதவித்தொகை",
+        "சலுகை",
+        "விண்ணப்பிக்க",
+        "விண்ணப்பம்",
+        "விண்ணப்ப",
     )
     seed_terms = (
-        "விதை", "விதைகள்", "மக்காச்சோள", "சான்றளிக்கப்பட்ட",
+        "விதை",
+        "விதைகள்",
+        "மக்காச்சோள",
+        "சான்றளிக்கப்பட்ட",
         "எண்ணெய் வித்து",
     )
     application_terms = (
-        "எங்கு", "எப்படி", "யாரிடம்", "விண்ணப்ப", "தகுதி",
-        "ஆவணங்கள்", "பெற வேண்டும்",
+        "எங்கு",
+        "எப்படி",
+        "யாரிடம்",
+        "விண்ணப்ப",
+        "தகுதி",
+        "ஆவணங்கள்",
+        "பெற வேண்டும்",
     )
 
     asks_about_subsidy = any(term in q for term in subsidy_terms)
@@ -133,6 +147,7 @@ def bm25_search(query: str, documents: list[Document], k: int = 5) -> list[Docum
     if not query_tokens:
         return []
     from rank_bm25 import BM25Okapi
+
     corpus_tokens = [tokenize(doc.page_content) for doc in documents]
     valid_indices = [i for i, tokens in enumerate(corpus_tokens) if tokens]
     if not valid_indices:
@@ -141,15 +156,21 @@ def bm25_search(query: str, documents: list[Document], k: int = 5) -> list[Docum
     valid_tokens = [corpus_tokens[i] for i in valid_indices]
     scores = BM25Okapi(valid_tokens).get_scores(query_tokens)
     query_set = set(query_tokens)
-    overlap_counts = [len(query_set.intersection(set(tokens))) for tokens in valid_tokens]
+    overlap_counts = [
+        len(query_set.intersection(set(tokens))) for tokens in valid_tokens
+    ]
     matching_indices = [i for i, count in enumerate(overlap_counts) if count > 0]
     if not matching_indices:
         return []
     if not any(scores[i] > 0 for i in matching_indices):
-        ranked_indices = sorted(matching_indices, key=lambda i: overlap_counts[i], reverse=True)
+        ranked_indices = sorted(
+            matching_indices, key=lambda i: overlap_counts[i], reverse=True
+        )
     else:
-        ranked_indices = sorted(matching_indices, key=lambda i: (scores[i], overlap_counts[i]), reverse=True)
-    return [valid_documents[i] for i in ranked_indices[:max(0, k)]]
+        ranked_indices = sorted(
+            matching_indices, key=lambda i: (scores[i], overlap_counts[i]), reverse=True
+        )
+    return [valid_documents[i] for i in ranked_indices[: max(0, k)]]
 
 
 def _requested_year_scope(question: str) -> str | None:
@@ -173,7 +194,8 @@ def _source_matches_year(doc: Document, year_scope: str) -> bool:
     """Match fiscal-year references in source metadata, not chunk text."""
     metadata = doc.metadata or {}
     source_bits = " ".join(
-        str(metadata.get(key, "")) for key in ("source_title", "source_url", "source_name")
+        str(metadata.get(key, ""))
+        for key in ("source_title", "source_url", "source_name")
     ).lower()
     source_bits = source_bits.replace("%20", " ").replace("–", "-").replace("—", "-")
     first, second = year_scope.split("-")
@@ -181,13 +203,22 @@ def _source_matches_year(doc: Document, year_scope: str) -> bool:
     normalized = re.sub(r"[^a-z0-9]+", " ", source_bits)
     compact = re.sub(r"[^a-z0-9]+", "", source_bits)
     candidates = [
-        f"{first}-{second}", f"{first}_{short}", f"{first} {second}",
-        f"{first} {short}", f"{first}{short}", f"{first}_{second}",
+        f"{first}-{second}",
+        f"{first}_{short}",
+        f"{first} {second}",
+        f"{first} {short}",
+        f"{first}{short}",
+        f"{first}_{second}",
     ]
-    return any(c.replace("-", "").replace("_", "").replace(" ", "") in compact for c in candidates) or any(c in normalized for c in candidates)
+    return any(
+        c.replace("-", "").replace("_", "").replace(" ", "") in compact
+        for c in candidates
+    ) or any(c in normalized for c in candidates)
 
 
-def _filter_year(documents: list[Document], question: str) -> tuple[list[Document], str | None]:
+def _filter_year(
+    documents: list[Document], question: str
+) -> tuple[list[Document], str | None]:
     year_scope = _requested_year_scope(question)
     if not year_scope:
         return documents, None
@@ -197,7 +228,9 @@ def _filter_year(documents: list[Document], question: str) -> tuple[list[Documen
     return (scoped, year_scope) if scoped else (documents, None)
 
 
-def retrieve_documents(store, question: str, mode: str = "vector", k: int = 5) -> list[Document]:
+def retrieve_documents(
+    store, question: str, mode: str = "vector", k: int = 5
+) -> list[Document]:
     """Retrieve from the existing FAISS corpus using vector, BM25 or hybrid.
 
     Tamil questions about the known Velaan e-Sevai Maiyam service list receive
@@ -230,7 +263,9 @@ def retrieve_documents(store, question: str, mode: str = "vector", k: int = 5) -
     for query in queries:
         vector_docs = store.similarity_search(query, k=search_k)
         if year_scope:
-            vector_docs = [doc for doc in vector_docs if _source_matches_year(doc, year_scope)]
+            vector_docs = [
+                doc for doc in vector_docs if _source_matches_year(doc, year_scope)
+            ]
         vector_docs = vector_docs[:k]
         ranked_lists.append(vector_docs)
 

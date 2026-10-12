@@ -14,15 +14,22 @@ ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.ingestion import ingest_uploaded_file, ingest_url, source_rows, init_registry
-from src.qa import answer_question
-from src.voice import transcribe_audio
 from guardrails import check_question
-from src.source_catalogue import GOS_URL, fetch_gos_catalogue, load_catalogue, save_catalogue
+from src.ingestion import ingest_uploaded_file, ingest_url, init_registry, source_rows
+from src.qa import answer_question
+from src.source_catalogue import (
+    GOS_URL,
+    fetch_gos_catalogue,
+    load_catalogue,
+    save_catalogue,
+)
+from src.voice import transcribe_audio
 
 load_dotenv(ROOT / ".env")
 st.set_page_config(
-    page_title="வயல்வழி AI | Agriculture Guide", page_icon="🌾", layout="wide",
+    page_title="வயல்வழி AI | Agriculture Guide",
+    page_icon="🌾",
+    layout="wide",
     initial_sidebar_state="auto",
 )
 
@@ -42,6 +49,7 @@ CATALOGUE_CSV = CATALOGUE_DIR / "gos_links.csv"
 CATALOGUE_DIR.mkdir(parents=True, exist_ok=True)
 init_registry()
 
+
 def get_embeddings():
     api_key = os.getenv("OPENAI_API_KEY", "")
     if not api_key:
@@ -52,15 +60,19 @@ def get_embeddings():
     if not api_key:
         return None
     from langchain_openai import OpenAIEmbeddings
+
     return OpenAIEmbeddings(
         model=os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
         api_key=api_key,
     )
 
+
 def require_embeddings():
     embeddings = get_embeddings()
     if embeddings is None:
-        st.error("OPENAI_API_KEY is missing. Copy .env.example to .env and add your key.")
+        st.error(
+            "OPENAI_API_KEY is missing. Copy .env.example to .env and add your key."
+        )
     return embeddings
 
 
@@ -75,19 +87,55 @@ PAGE_STATUS = "📊 Knowledge Base Status"
 PAGES = [PAGE_HOME, PAGE_ASK, PAGE_SOURCES, PAGE_STATUS]
 
 RETRIEVAL_LABELS = ["Hybrid (recommended)", "Vector only", "BM25 keyword only"]
-RETRIEVAL_MODES = {"Vector only": "vector", "BM25 keyword only": "bm25", "Hybrid (recommended)": "hybrid"}
+RETRIEVAL_MODES = {
+    "Vector only": "vector",
+    "BM25 keyword only": "bm25",
+    "Hybrid (recommended)": "hybrid",
+}
 
 # Suggested topics taken from the indexed budget speech / policy documents. Clicking one asks a normal,
 # fully self-contained question; the answer still comes only from the vector database.
 SCHEME_TOPICS = [
-    ("Velaan e-Sevai Maiyam", "One-stop farmer service centres (ATMA)", "What is the Velaan e-Sevai Maiyam scheme?"),
-    ("Tamil Nadu Millet Mission", "Millet production and consumption", "What is the Tamil Nadu Millet Mission?"),
-    ("Mannuyir Kaathu Mannuyir Kaappom", "Soil health and organic farming", "What is the Chief Minister's Mannuyir Kaathu Mannuyir Kaappom Scheme?"),
-    ("Farmers Service Centres", "Input and advisory centres for farmers", "What is the Chief Minister's 1000 Farmers Service Centres Scheme?"),
-    ("Micro Irrigation Scheme", "Subsidised micro-irrigation systems", "What subsidy is available under the Micro Irrigation Scheme?"),
-    ("Kuruvai Special Package", "Support for Kuruvai paddy cultivation", "What is the Kuruvai Special Package Scheme?"),
-    ("Traditional Paddy Mission", "Conserving traditional paddy varieties", "What is Nel Jayaraman's Traditional Paddy Varieties Conservation Mission?"),
-    ("Crop Insurance", "Premium subsidy and crop-loss compensation", "How does crop insurance work for farmers in Tamil Nadu?"),
+    (
+        "Velaan e-Sevai Maiyam",
+        "One-stop farmer service centres (ATMA)",
+        "What is the Velaan e-Sevai Maiyam scheme?",
+    ),
+    (
+        "Tamil Nadu Millet Mission",
+        "Millet production and consumption",
+        "What is the Tamil Nadu Millet Mission?",
+    ),
+    (
+        "Mannuyir Kaathu Mannuyir Kaappom",
+        "Soil health and organic farming",
+        "What is the Chief Minister's Mannuyir Kaathu Mannuyir Kaappom Scheme?",
+    ),
+    (
+        "Farmers Service Centres",
+        "Input and advisory centres for farmers",
+        "What is the Chief Minister's 1000 Farmers Service Centres Scheme?",
+    ),
+    (
+        "Micro Irrigation Scheme",
+        "Subsidised micro-irrigation systems",
+        "What subsidy is available under the Micro Irrigation Scheme?",
+    ),
+    (
+        "Kuruvai Special Package",
+        "Support for Kuruvai paddy cultivation",
+        "What is the Kuruvai Special Package Scheme?",
+    ),
+    (
+        "Traditional Paddy Mission",
+        "Conserving traditional paddy varieties",
+        "What is Nel Jayaraman's Traditional Paddy Varieties Conservation Mission?",
+    ),
+    (
+        "Crop Insurance",
+        "Premium subsidy and crop-loss compensation",
+        "How does crop insurance work for farmers in Tamil Nadu?",
+    ),
 ]
 FOLLOW_UP_QUESTIONS = [
     "What documents are required to apply for a subsidy?",
@@ -125,13 +173,16 @@ def kb_stats() -> dict:
     return {
         "sources": len(indexed),
         "chunks": sum(int(r.get("chunk_count") or 0) for r in indexed),
-        "latest": max((str(r.get("ingested_at_utc") or "") for r in indexed), default="")[:10],
+        "latest": max(
+            (str(r.get("ingested_at_utc") or "") for r in indexed), default=""
+        )[:10],
     }
 
 
 STATS = kb_stats()
 
-st.markdown("""
+st.markdown(
+    """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;500;600;700&display=swap');
 :root {
@@ -258,7 +309,9 @@ div[data-testid="stMetricLabel"] p {color: var(--muted); font-weight:600;}
 
 .footer-note {text-align:center; color: var(--muted); font-size:.82rem; margin-top:1.6rem;}
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 _FIELD_SVG = (
     '<svg viewBox="0 0 600 260" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">'
@@ -270,7 +323,7 @@ _FIELD_SVG = (
     '<g stroke="#8CCB7E" stroke-width="2" opacity=".55" fill="none">'
     '<path d="M40 250 C120 230 200 244 280 238"/><path d="M300 252 C380 232 460 246 560 236"/></g>'
     '<g fill="#F2D675"><circle cx="120" cy="206" r="3"/><circle cx="150" cy="212" r="3"/><circle cx="410" cy="196" r="3"/><circle cx="440" cy="203" r="3"/></g>'
-    '</svg>'
+    "</svg>"
 )
 
 
@@ -300,7 +353,11 @@ with st.sidebar:
         f'<div class="side-stat"><span>🧩 Passages</span><b>{STATS["chunks"]:,}</b></div>'
         f'<div style="margin-top:.4rem;color:#5E6F64">Answers come only from indexed official documents. No live web search.</div></div>'
         f'<div class="side-art"><svg viewBox="0 40 600 220" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg" '
-        f'style="width:100%;height:auto"><rect y="40" width="600" height="220" fill="#D9ECD6"/>' + _FIELD_SVG.split('xmlns="http://www.w3.org/2000/svg">')[1].replace('</svg>', '') + '</svg></div>',
+        f'style="width:100%;height:auto"><rect y="40" width="600" height="220" fill="#D9ECD6"/>'
+        + _FIELD_SVG.split('xmlns="http://www.w3.org/2000/svg">')[1].replace(
+            "</svg>", ""
+        )
+        + "</svg></div>",
         unsafe_allow_html=True,
     )
 
@@ -309,7 +366,8 @@ with st.sidebar:
 # Home
 # ---------------------------------------------------------------------------
 def render_home_page() -> None:
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div class="hero">
       <svg class="hero-art" viewBox="0 0 600 260" preserveAspectRatio="xMaxYMax slice" xmlns="http://www.w3.org/2000/svg">{_FIELD_SVG.split('xmlns="http://www.w3.org/2000/svg">')[1].replace('</svg>', '')}</svg>
       <span class="eyebrow">Tamil Nadu · Agriculture Schemes Assistant</span>
@@ -323,57 +381,143 @@ def render_home_page() -> None:
         <span class="chip">🚫 No live web search</span>
       </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     b1, b2, _spacer = st.columns([1.2, 1.2, 3])
-    b1.button("💬 Ask AI Assistant", type="primary", use_container_width=True, key="home_cta_ask", on_click=_open_page, args=(PAGE_ASK,))
-    b2.button("🎙️ Ask by voice", use_container_width=True, key="home_cta_voice", on_click=_open_page, args=(PAGE_ASK,))
+    b1.button(
+        "💬 Ask AI Assistant",
+        type="primary",
+        use_container_width=True,
+        key="home_cta_ask",
+        on_click=_open_page,
+        args=(PAGE_ASK,),
+    )
+    b2.button(
+        "🎙️ Ask by voice",
+        use_container_width=True,
+        key="home_cta_voice",
+        on_click=_open_page,
+        args=(PAGE_ASK,),
+    )
 
     st.write("")
     cards = [
-        ("fc-green", "💬", "AI Assistant", "Ask in Tamil or English and get answers with cited sources.", "Chat now →", PAGE_ASK, "home_card_ask"),
-        ("fc-blue", "🎙️", "Voice Question", "Speak your question — it is transcribed so you can review it.", "Ask by voice →", PAGE_ASK, "home_card_voice"),
-        ("fc-amber", "📚", "Add Sources", "Upload PDFs, web pages and Government Orders to the knowledge base.", "Manage sources →", PAGE_SOURCES, "home_card_sources"),
-        ("fc-purple", "📊", "Knowledge Base", "See what is indexed, with counts and an exportable registry.", "View status →", PAGE_STATUS, "home_card_status"),
+        (
+            "fc-green",
+            "💬",
+            "AI Assistant",
+            "Ask in Tamil or English and get answers with cited sources.",
+            "Chat now →",
+            PAGE_ASK,
+            "home_card_ask",
+        ),
+        (
+            "fc-blue",
+            "🎙️",
+            "Voice Question",
+            "Speak your question — it is transcribed so you can review it.",
+            "Ask by voice →",
+            PAGE_ASK,
+            "home_card_voice",
+        ),
+        (
+            "fc-amber",
+            "📚",
+            "Add Sources",
+            "Upload PDFs, web pages and Government Orders to the knowledge base.",
+            "Manage sources →",
+            PAGE_SOURCES,
+            "home_card_sources",
+        ),
+        (
+            "fc-purple",
+            "📊",
+            "Knowledge Base",
+            "See what is indexed, with counts and an exportable registry.",
+            "View status →",
+            PAGE_STATUS,
+            "home_card_status",
+        ),
     ]
-    for col, (css, icon, title, text, cta, target, key) in zip(st.columns(4, gap="medium"), cards):
+    for col, (css, icon, title, text, cta, target, key) in zip(
+        st.columns(4, gap="medium"), cards
+    ):
         with col:
-            st.markdown(f'<div class="fcard {css}"><div class="ico">{icon}</div><h4>{html.escape(title)}</h4><p>{html.escape(text)}</p></div>', unsafe_allow_html=True)
-            st.button(cta, key=key, use_container_width=True, on_click=_open_page, args=(target,))
+            st.markdown(
+                f'<div class="fcard {css}"><div class="ico">{icon}</div><h4>{html.escape(title)}</h4><p>{html.escape(text)}</p></div>',
+                unsafe_allow_html=True,
+            )
+            st.button(
+                cta,
+                key=key,
+                use_container_width=True,
+                on_click=_open_page,
+                args=(target,),
+            )
 
     st.write("")
     left, right = st.columns([1.35, 1], gap="large")
     with left:
         with st.container(border=True):
-            st.markdown('<span class="card-marker"></span><div class="panel-title">How your answer is made</div>', unsafe_allow_html=True)
-            st.markdown("""
+            st.markdown(
+                '<span class="card-marker"></span><div class="panel-title">How your answer is made</div>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                """
             <div class="step"><i>1</i><div><b>Safety check</b><br>Your question (typed or spoken) is screened before anything else.</div></div>
             <div class="step"><i>2</i><div><b>Search official documents</b><br>Only the pre-indexed Government documents are searched: keyword, semantic, or both.</div></div>
             <div class="step"><i>3</i><div><b>Cited answer</b><br>The answer quotes its sources, or says clearly when the evidence is missing.</div></div>
             <div class="note">ℹ️ Always confirm eligibility, amounts and deadlines with your local agriculture office.</div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
         t1, t2, t3 = st.columns(3)
-        t1.markdown(f'<div class="stat-tile"><div class="v">{STATS["sources"]}</div><div class="l">Sources indexed</div></div>', unsafe_allow_html=True)
-        t2.markdown(f'<div class="stat-tile"><div class="v">{STATS["chunks"]:,}</div><div class="l">Searchable passages</div></div>', unsafe_allow_html=True)
-        t3.markdown(f'<div class="stat-tile"><div class="v">{html.escape(STATS["latest"] or "—")}</div><div class="l">Last updated</div></div>', unsafe_allow_html=True)
+        t1.markdown(
+            f'<div class="stat-tile"><div class="v">{STATS["sources"]}</div><div class="l">Sources indexed</div></div>',
+            unsafe_allow_html=True,
+        )
+        t2.markdown(
+            f'<div class="stat-tile"><div class="v">{STATS["chunks"]:,}</div><div class="l">Searchable passages</div></div>',
+            unsafe_allow_html=True,
+        )
+        t3.markdown(
+            f'<div class="stat-tile"><div class="v">{html.escape(STATS["latest"] or "—")}</div><div class="l">Last updated</div></div>',
+            unsafe_allow_html=True,
+        )
     with right:
         render_scheme_panel(prefix="home")
 
 
 def render_scheme_panel(prefix: str) -> None:
     with st.container(border=True):
-        st.markdown('<span class="card-marker"></span><div class="panel-title">⭐ Schemes you can ask about</div>', unsafe_allow_html=True)
-        st.caption("Suggested topics. Answers appear only if the relevant document has been indexed.")
+        st.markdown(
+            '<span class="card-marker"></span><div class="panel-title">⭐ Schemes you can ask about</div>',
+            unsafe_allow_html=True,
+        )
+        st.caption(
+            "Suggested topics. Answers appear only if the relevant document has been indexed."
+        )
         st.markdown('<div class="scheme-list">', unsafe_allow_html=True)
         for idx, (name, blurb, question) in enumerate(SCHEME_TOPICS):
-            st.button(f"{name} — {blurb}", key=f"{prefix}_scheme_{idx}", use_container_width=True, on_click=_ask_now, args=(question,))
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.button(
+                f"{name} — {blurb}",
+                key=f"{prefix}_scheme_{idx}",
+                use_container_width=True,
+                on_click=_ask_now,
+                args=(question,),
+            )
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------
 # Ask (chat)
 # ---------------------------------------------------------------------------
-def process_question(question: str, retrieval_mode: str, retrieval_mode_label: str) -> bool:
+def process_question(
+    question: str, retrieval_mode: str, retrieval_mode_label: str
+) -> bool:
     """Same sequence as the original app: guardrail check -> embeddings -> answer_question."""
     entry = {"q": question, "mode": retrieval_mode_label}
     with st.spinner("Running safety check..."):
@@ -387,13 +531,21 @@ def process_question(question: str, retrieval_mode: str, retrieval_mode_label: s
         with st.spinner("Searching the indexed knowledge base..."):
             try:
                 result = answer_question(
-                    question, embeddings, os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini"),
+                    question,
+                    embeddings,
+                    os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini"),
                     retrieval_mode=retrieval_mode,
                 )
-                entry.update(kind="answer", answer=result["answer"], sources=result["sources"])
+                entry.update(
+                    kind="answer", answer=result["answer"], sources=result["sources"]
+                )
             except Exception as exc:
-                entry.update(kind="error", message=f"Could not answer the question: {exc}")
-    st.session_state["chat_history"] = (st.session_state["chat_history"] + [entry])[-20:]
+                entry.update(
+                    kind="error", message=f"Could not answer the question: {exc}"
+                )
+    st.session_state["chat_history"] = (st.session_state["chat_history"] + [entry])[
+        -20:
+    ]
     if entry["kind"] in {"answer", "blocked"}:
         st.session_state["_clear_question"] = True
     return True
@@ -412,7 +564,9 @@ def render_sources(sources: list[dict]) -> None:
             if source.get("page"):
                 badges += f'<span class="badge gold">Page {html.escape(str(source["page"]))}</span>'
             if badges:
-                st.markdown(f'<div class="src-badges">{badges}</div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div class="src-badges">{badges}</div>', unsafe_allow_html=True
+                )
             st.write(source["excerpt"])
             if source.get("url"):
                 st.markdown(f"[Open source document]({source['url']})")
@@ -432,7 +586,9 @@ def render_history(box) -> None:
             with st.chat_message("assistant", avatar="🌾"):
                 if turn["kind"] == "blocked":
                     st.warning(turn["message"])
-                    st.caption("Safety guardrail stopped this request before document retrieval or answer generation.")
+                    st.caption(
+                        "Safety guardrail stopped this request before document retrieval or answer generation."
+                    )
                 elif turn["kind"] == "error":
                     st.error(turn["message"])
                 else:
@@ -449,8 +605,16 @@ def render_history(box) -> None:
                         render_sources(sources)
         if history and history[-1]["kind"] == "answer":
             st.caption("Try asking")
-            for col, text in zip(st.columns(len(FOLLOW_UP_QUESTIONS)), FOLLOW_UP_QUESTIONS):
-                col.button(text, key=f"chip_{len(history)}_{FOLLOW_UP_QUESTIONS.index(text)}", use_container_width=True, on_click=_ask_now, args=(text,))
+            for col, text in zip(
+                st.columns(len(FOLLOW_UP_QUESTIONS)), FOLLOW_UP_QUESTIONS
+            ):
+                col.button(
+                    text,
+                    key=f"chip_{len(history)}_{FOLLOW_UP_QUESTIONS.index(text)}",
+                    use_container_width=True,
+                    on_click=_ask_now,
+                    args=(text,),
+                )
 
 
 def render_ask_page() -> None:
@@ -458,8 +622,16 @@ def render_ask_page() -> None:
     with side_col:
         render_scheme_panel(prefix="ask")
     with main_col:
-        st.markdown(  '<div class="sec-title" style="font-size:1.45rem">'    '💬 Your Agricultural Questions, Answered</div>',    unsafe_allow_html=True,)
-        st.caption(    "Get AI-powered answers about Tamil Nadu agricultural schemes, "    "subsidies, farmer services, and government initiatives. "    "Ask in English or Tamil.")
+        st.markdown(
+            '<div class="sec-title" style="font-size:1.45rem">'
+            "💬 Your Agricultural Questions, Answered</div>",
+            unsafe_allow_html=True,
+        )
+        st.caption(
+            "Get AI-powered answers about Tamil Nadu agricultural schemes, "
+            "subsidies, farmer services, and government initiatives. "
+            "Ask in English or Tamil."
+        )
         history_box = st.container()
         has_history = bool(st.session_state["chat_history"])
 
@@ -476,7 +648,10 @@ def render_ask_page() -> None:
                     if st.button(sample, key=f"sample_{idx}", use_container_width=True):
                         st.session_state["farmer_question"] = sample
 
-        st.markdown('<div class="composer-title">Your question / உங்கள் கேள்வி</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="composer-title">Your question / உங்கள் கேள்வி</div>',
+            unsafe_allow_html=True,
+        )
         textarea_box = st.container()
         voice_box = st.container()
 
@@ -493,14 +668,23 @@ def render_ask_page() -> None:
                     st.session_state["_voice_digest"] = digest
                     try:
                         with st.spinner("Transcribing your voice question..."):
-                            transcript = transcribe_audio(audio_bytes, getattr(audio, "name", None) or "question.wav")
+                            transcript = transcribe_audio(
+                                audio_bytes,
+                                getattr(audio, "name", None) or "question.wav",
+                            )
                         if transcript:
                             st.session_state["farmer_question"] = transcript
-                            st.session_state["_voice_note"] = "Transcribed from your voice — please check the text, edit if needed, then press Send."
+                            st.session_state["_voice_note"] = (
+                                "Transcribed from your voice — please check the text, edit if needed, then press Send."
+                            )
                         else:
-                            st.session_state["_voice_note"] = "I could not hear a question in that recording. Please try again."
+                            st.session_state["_voice_note"] = (
+                                "I could not hear a question in that recording. Please try again."
+                            )
                     except Exception as exc:
-                        st.session_state["_voice_note"] = f"Voice transcription failed: {exc}"
+                        st.session_state["_voice_note"] = (
+                            f"Voice transcription failed: {exc}"
+                        )
             if st.session_state.get("_voice_note"):
                 st.caption(st.session_state["_voice_note"])
 
@@ -522,15 +706,27 @@ def render_ask_page() -> None:
         retrieval_mode = RETRIEVAL_MODES[retrieval_mode_label]
 
         send_col, clear_col = st.columns([4, 1])
-        send = send_col.button("🔎 Find answer / பதிலைக் காண்க", type="primary", disabled=not question.strip(), use_container_width=True)
+        send = send_col.button(
+            "🔎 Find answer / பதிலைக் காண்க",
+            type="primary",
+            disabled=not question.strip(),
+            use_container_width=True,
+        )
         if has_history:
-            clear_col.button("🗑️ Clear chat", key="clear_chat", use_container_width=True, on_click=_clear_chat)
+            clear_col.button(
+                "🗑️ Clear chat",
+                key="clear_chat",
+                use_container_width=True,
+                on_click=_clear_chat,
+            )
 
         autorun = st.session_state.pop("_autorun", False)
         if (send or autorun) and question.strip():
             st.session_state["_voice_note"] = ""
             if process_question(question, retrieval_mode, retrieval_mode_label):
-                st.session_state["_voice_nonce"] = st.session_state.get("_voice_nonce", 0) + 1  # reset the recorder
+                st.session_state["_voice_nonce"] = (
+                    st.session_state.get("_voice_nonce", 0) + 1
+                )  # reset the recorder
                 st.rerun()
 
         render_history(history_box)
@@ -540,10 +736,21 @@ def render_ask_page() -> None:
 # Sources & Ingestion (admin) and Status — widgets, keys and handlers unchanged from the original app
 # ---------------------------------------------------------------------------
 def render_sources_page() -> None:
-    st.caption("Administrator workspace — documents added here become searchable in the Ask tab. Farmer questions never trigger live web search.")
+    st.caption(
+        "Administrator workspace — documents added here become searchable in the Ask tab. Farmer questions never trigger live web search."
+    )
     with st.container(border=True):
-        section_head(1, "Upload official PDFs", "Upload policy notes, scheme guidelines, Government Orders, and other approved documents.")
-        uploads = st.file_uploader("Choose one or more PDF files", type=["pdf"], accept_multiple_files=True, key="pdf_uploads")
+        section_head(
+            1,
+            "Upload official PDFs",
+            "Upload policy notes, scheme guidelines, Government Orders, and other approved documents.",
+        )
+        uploads = st.file_uploader(
+            "Choose one or more PDF files",
+            type=["pdf"],
+            accept_multiple_files=True,
+            key="pdf_uploads",
+        )
         if st.button("Ingest uploaded PDFs", type="primary", disabled=not uploads):
             embeddings = require_embeddings()
             if embeddings:
@@ -560,16 +767,24 @@ def render_sources_page() -> None:
                     progress.progress(i / len(uploads))
 
     with st.container(border=True):
-        section_head(2, "Load URL sources", "Add readable web pages or direct PDF links.")
+        section_head(
+            2, "Load URL sources", "Add readable web pages or direct PDF links."
+        )
         urls_text = st.text_area(
             "Enter one URL per line (HTML page or direct PDF URL)",
             placeholder="https://example.gov.in/scheme-guidelines.pdf\nhttps://example.gov.in/scheme-details.html",
             height=110,
         )
-        if st.button("Ingest URL sources", type="primary", disabled=not urls_text.strip()):
+        if st.button(
+            "Ingest URL sources", type="primary", disabled=not urls_text.strip()
+        ):
             embeddings = require_embeddings()
             if embeddings:
-                urls = list(dict.fromkeys(line.strip() for line in urls_text.splitlines() if line.strip()))
+                urls = list(
+                    dict.fromkeys(
+                        line.strip() for line in urls_text.splitlines() if line.strip()
+                    )
+                )
                 for url in urls:
                     try:
                         result = ingest_url(url, embeddings)
@@ -578,20 +793,40 @@ def render_sources_page() -> None:
                         st.error(f"{url} — {exc}")
 
     with st.container(border=True):
-        section_head(3, "Government Orders catalogue", "Fetch the current GO table into JSON and CSV. This refreshes the source list; it does not automatically download or index every listed PDF.")
+        section_head(
+            3,
+            "Government Orders catalogue",
+            "Fetch the current GO table into JSON and CSV. This refreshes the source list; it does not automatically download or index every listed PDF.",
+        )
         st.code(GOS_URL, language="text")
         if st.button("🔄 Refresh GO catalogue from source website"):
-            with st.spinner("Opening the official GO page and extracting table rows..."):
+            with st.spinner(
+                "Opening the official GO page and extracting table rows..."
+            ):
                 try:
                     rows, method = fetch_gos_catalogue(GOS_URL)
                     save_catalogue(rows, CATALOGUE_JSON, CATALOGUE_CSV)
                     st.success(f"Refreshed {len(rows)} unique records using {method}.")
-                    st.download_button("Download refreshed JSON", CATALOGUE_JSON.read_bytes(), "gos_links.json", "application/json")
-                    st.download_button("Download refreshed CSV", CATALOGUE_CSV.read_bytes(), "gos_links.csv", "text/csv")
-                    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                    st.download_button(
+                        "Download refreshed JSON",
+                        CATALOGUE_JSON.read_bytes(),
+                        "gos_links.json",
+                        "application/json",
+                    )
+                    st.download_button(
+                        "Download refreshed CSV",
+                        CATALOGUE_CSV.read_bytes(),
+                        "gos_links.csv",
+                        "text/csv",
+                    )
+                    st.dataframe(
+                        pd.DataFrame(rows), use_container_width=True, hide_index=True
+                    )
                 except Exception as exc:
                     st.error(str(exc))
-                    st.info("If Playwright is being used for the first time, run: python -m playwright install chromium")
+                    st.info(
+                        "If Playwright is being used for the first time, run: python -m playwright install chromium"
+                    )
 
         # Catalogue preview and controlled ingestion of selected GO PDFs.
         rows = load_catalogue(CATALOGUE_JSON)
@@ -603,46 +838,82 @@ def render_sources_page() -> None:
                 try:
                     shortlist_df = pd.read_csv(shortlist_path).fillna("")
                     url_col = "url" if "url" in shortlist_df.columns else "PDF URL"
-                    keep_col = "keep" if "keep" in shortlist_df.columns else "Keep? (Y/N)"
-                    if url_col in shortlist_df.columns and keep_col in shortlist_df.columns:
-                        approved_urls = set(shortlist_df.loc[shortlist_df[keep_col].astype(str).str.upper().eq("Y"), url_col].astype(str))
+                    keep_col = (
+                        "keep" if "keep" in shortlist_df.columns else "Keep? (Y/N)"
+                    )
+                    if (
+                        url_col in shortlist_df.columns
+                        and keep_col in shortlist_df.columns
+                    ):
+                        approved_urls = set(
+                            shortlist_df.loc[
+                                shortlist_df[keep_col].astype(str).str.upper().eq("Y"),
+                                url_col,
+                            ].astype(str)
+                        )
                 except Exception:
                     approved_urls = set()
 
             selection_rows = []
             for row in rows:
-                selection_rows.append({
-                    "Select for ingestion": bool(row.get("url") in approved_urls),
-                    "Department": row.get("dept", ""),
-                    "GO Number": row.get("go_no", ""),
-                    "Year": row.get("year", ""),
-                    "Date": row.get("date", ""),
-                    "Subject": row.get("subject", ""),
-                    "Section": row.get("section", ""),
-                    "PDF URL": row.get("url", ""),
-                })
-            st.write("Review the catalogue below. The supplied shortlist preselects records marked Y; newly discovered records remain unselected by default.")
+                selection_rows.append(
+                    {
+                        "Select for ingestion": bool(row.get("url") in approved_urls),
+                        "Department": row.get("dept", ""),
+                        "GO Number": row.get("go_no", ""),
+                        "Year": row.get("year", ""),
+                        "Date": row.get("date", ""),
+                        "Subject": row.get("subject", ""),
+                        "Section": row.get("section", ""),
+                        "PDF URL": row.get("url", ""),
+                    }
+                )
+            st.write(
+                "Review the catalogue below. The supplied shortlist preselects records marked Y; newly discovered records remain unselected by default."
+            )
             edited = st.data_editor(
                 pd.DataFrame(selection_rows),
                 use_container_width=True,
                 hide_index=True,
                 height=350,
                 key="gos_catalogue_editor",
-                disabled=["Department", "GO Number", "Year", "Date", "Subject", "Section", "PDF URL"],
+                disabled=[
+                    "Department",
+                    "GO Number",
+                    "Year",
+                    "Date",
+                    "Subject",
+                    "Section",
+                    "PDF URL",
+                ],
                 column_config={
-                    "Select for ingestion": st.column_config.CheckboxColumn("Select for ingestion", default=False),
-                    "PDF URL": st.column_config.LinkColumn("PDF URL", display_text="Open PDF"),
+                    "Select for ingestion": st.column_config.CheckboxColumn(
+                        "Select for ingestion", default=False
+                    ),
+                    "PDF URL": st.column_config.LinkColumn(
+                        "PDF URL", display_text="Open PDF"
+                    ),
                 },
             )
             selected_rows = edited[edited["Select for ingestion"] == True]
-            st.caption(f"Selected for ingestion: {len(selected_rows)} record(s). Selecting a row downloads and indexes its PDF; review old GOs before selecting them.")
-            if st.button("Ingest selected Government Order PDFs", type="primary", disabled=selected_rows.empty):
+            st.caption(
+                f"Selected for ingestion: {len(selected_rows)} record(s). Selecting a row downloads and indexes its PDF; review old GOs before selecting them."
+            )
+            if st.button(
+                "Ingest selected Government Order PDFs",
+                type="primary",
+                disabled=selected_rows.empty,
+            ):
                 embeddings = require_embeddings()
                 if embeddings:
                     progress = st.progress(0)
-                    for i, (_, selected_row) in enumerate(selected_rows.iterrows(), start=1):
+                    for i, (_, selected_row) in enumerate(
+                        selected_rows.iterrows(), start=1
+                    ):
                         url = str(selected_row.get("PDF URL", "")).strip()
-                        title = f"{selected_row.get('GO Number', '')} — {selected_row.get('Subject', '')}".strip(" —")
+                        title = f"{selected_row.get('GO Number', '')} — {selected_row.get('Subject', '')}".strip(
+                            " —"
+                        )
                         try:
                             result = ingest_url(url, embeddings)
                             st.success(f"{title}: {result['message']}")
@@ -652,19 +923,32 @@ def render_sources_page() -> None:
 
 
 def render_status_page() -> None:
-    st.markdown('<div class="sec-title" style="font-size:1.25rem; margin-bottom:.6rem">Ingestion registry</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="sec-title" style="font-size:1.25rem; margin-bottom:.6rem">Ingestion registry</div>',
+        unsafe_allow_html=True,
+    )
     records = source_rows()
     if records:
         df = pd.DataFrame(records)
         m1, m2, m3 = st.columns(3)
         m1.metric("Sources recorded", len(df))
         m2.metric("Successfully indexed", int((df["status"] == "indexed").sum()))
-        m3.metric("Passages indexed", int(df.loc[df["status"] == "indexed", "chunk_count"].sum()))
+        m3.metric(
+            "Passages indexed",
+            int(df.loc[df["status"] == "indexed", "chunk_count"].sum()),
+        )
         st.dataframe(df, use_container_width=True, hide_index=True)
-        st.download_button("Export source registry CSV", df.to_csv(index=False).encode("utf-8-sig"), "source_registry.csv", "text/csv")
+        st.download_button(
+            "Export source registry CSV",
+            df.to_csv(index=False).encode("utf-8-sig"),
+            "source_registry.csv",
+            "text/csv",
+        )
     else:
         st.info("No sources have been indexed yet.")
-    st.caption("Duplicate files/content are skipped using SHA-256. Changed content is recorded as a new version. Exact content hashes are checked before creating embeddings.")
+    st.caption(
+        "Duplicate files/content are skipped using SHA-256. Changed content is recorded as a new version. Exact content hashes are checked before creating embeddings."
+    )
 
 
 if page == PAGE_HOME:
@@ -676,4 +960,7 @@ elif page == PAGE_SOURCES:
 else:
     render_status_page()
 
-st.markdown('<div class="footer-note">வயல்வழி AI · Answers come only from indexed official documents · No live web search</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="footer-note">வயல்வழி AI · Answers come only from indexed official documents · No live web search</div>',
+    unsafe_allow_html=True,
+)
